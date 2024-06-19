@@ -1,6 +1,6 @@
-# How Module Attributes in Elixir can cause bloat
+# Module Attributes in Elixir
 
-## What / Why?
+## Whats this about?
 
 Elixir does not have true constants like many other languages. It does have [Module Attributes](https://hexdocs.pm/elixir/module-attributes.html) which can sometimes *feel* like constants.
 
@@ -32,12 +32,18 @@ Under elixir 1.16.3-otp-26
 
 | cli | time | beam file size |
 | --- | --- | --- |
-| `/usr/bin/time elixirc memory_baseline.exs` | 13.51 s | 5.65 Mb |
-| `/usr/bin/time elixirc memory_baseline.exs` | 11.26 s | 5.65 Mb |
-| `/usr/bin/time elixirc memory_baseline.exs` | 13.11 s | 5.65 Mb |
-| `/usr/bin/time elixirc memory_bloat.exs` | 40.39 s | 17.19 Mb |
-| `/usr/bin/time elixirc memory_bloat.exs` | 46.20 s | 17.19 Mb |
-| `/usr/bin/time elixirc memory_bloat.exs` | 42.51 s | 17.19 Mb |
+| `/usr/bin/time elixirc lib/modattr_baseline.ex` | 13.51 s | 5.65 Mb |
+| `/usr/bin/time elixirc lib/modattr_baseline.ex` | 11.26 s | 5.65 Mb |
+| `/usr/bin/time elixirc lib/modattr_baseline.ex` | 13.11 s | 5.65 Mb |
+| `/usr/bin/time elixirc lib/modattr_bloat.ex` | 40.39 s | 17.19 Mb |
+| `/usr/bin/time elixirc lib/modattr_bloat.ex` | 46.20 s | 17.19 Mb |
+| `/usr/bin/time elixirc lib/modattr_bloat.ex` | 42.51 s | 17.19 Mb |
+| `/usr/bin/time elixirc lib/genserver_baseline.ex` | 0.62 s | 5.48k |
+| `/usr/bin/time elixirc lib/genserver_baseline.ex` | 0.61 s | 5.48k |
+| `/usr/bin/time elixirc lib/genserver_baseline.ex` | 0.61 s | 5.48k |
+
+Some important things to note here:
+ - The genserver only creates the map on init, that time is not reflected in compilation
 
 ### Inspecting the BEAM file
 
@@ -59,18 +65,35 @@ For example:
 
 ```
 
+Those maps literally have 1 million entries.
+
 ### Runtime size
 
 Under elixir 1.16.3-otp-26
 
+Compile the files
+```
+elixirc lib/genserver_baseline.ex
+elixirc lib/modattr_baseline.ex
+elixirc lib/modattr_bloat.ex
+```
+
 | cli | time | peak memory |
 | --- | --- | -- |
-| `/usr/bin/time -l elixir bin/memory_baseline.exs` | 0.60 s | 275M |
-| `/usr/bin/time -l elixir bin/memory_baseline.exs` | 0.60 s | 274M |
-| `/usr/bin/time -l elixir bin/memory_baseline.exs` | 0.63 s | 274M |
-| `/usr/bin/time -l elixir bin/memory_bloat.exs` | 0.60 s | 271M |
-| `/usr/bin/time -l elixir bin/memory_bloat.exs` | 0.63 s | 287M |
-| `/usr/bin/time -l elixir bin/memory_bloat.exs` | 0.64 s | 287M |
+| `/usr/bin/time -l elixir bin/modattr_baseline.exs` | 0.60 s | 275M |
+| `/usr/bin/time -l elixir bin/modattr_baseline.exs` | 0.60 s | 274M |
+| `/usr/bin/time -l elixir bin/modattr_baseline.exs` | 0.63 s | 274M |
+| `/usr/bin/time -l elixir bin/modattr_bloat.exs` | 0.60 s | 271M |
+| `/usr/bin/time -l elixir bin/modattr_bloat.exs` | 0.63 s | 287M |
+| `/usr/bin/time -l elixir bin/modattr_bloat.exs` | 0.64 s | 287M |
+| `/usr/bin/time -l elixir bin/genserver_baseline.exs` | 1.00 s | 491M |
+| `/usr/bin/time -l elixir bin/genserver_baseline.exs` | 0.99 s | 490M |
+| `/usr/bin/time -l elixir bin/genserver_baseline.exs` | 1.00 s | 485M |
 
-## Conclusion
+## Closing thoughts
 
+Super interesting (at least to me).
+
+The more data that is loaded via a module attributes has a significant negative impact on compile times and size of the resulting byte code for `beam`.  But at run-time this completely goes away as the virtual machine seems to share all references to the same data as intended.
+
+Also interesting is the apparent trade off with using static data verses a GenServer.  Compile times and amount of byte code for the GenServer is extremely small, even the run-time latency is within a reasonable tolerance.  But the run-time memory impact of the GenServer seems quite significant.
