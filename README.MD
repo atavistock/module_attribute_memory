@@ -44,17 +44,17 @@ First its important to note that the GenServer version only populates the map da
 
 At this point it seems that a module attribute is not only inlined, but inlined directly in the bytecode and duplicated for each occurrence.  Disassembling the resulting bytecode in the `.beam` files confirms this.  This explains why the output for the *bloat* version is so many times larger.
 
-Heres a snippet from the *bloat* version where you can see the map occuring multiple times
+Heres a snippet from the *bloat* version where you can see the map occurring multiple times
 
 ```
-  //Function  Elixir.ModuleBloat:get/1
-  label10:  func_info            Elixir.ModuleBloat get 1 //line lib/memory_bloat.ex, 5
+  //Function  Elixir.ModattrBloat:get/1
+  label10:  func_info            Elixir.ModattrBloat get 1 //line lib/modattr_bloat.ex, 5
   label11:  move                 X[0] X[1]
             move                %{ ..., 100004 => a1, 100005 => a1, ... }
             call_ext_only        2 Elixir.Map:get/2
 
-  //Function  Elixir.ModuleBloat:has_key?/1
-  label12:  func_info            Elixir.ModuleBloat has_key? 1 //line lib/memory_bloat.ex, 6
+  //Function  Elixir.ModattrBloat:has_key?/1
+  label12:  func_info            Elixir.ModattrBloat has_key? 1 //line lib/modattr_bloat.ex, 6
   label13:  bif2                 label00 2 X[0] %{ ..., 100004 => a1, 100005 => a1, ... }
             return
 
