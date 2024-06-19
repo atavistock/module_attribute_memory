@@ -40,7 +40,7 @@ Compiled three times deleting the generated `.beam` file between each run
 | `/usr/bin/time elixirc lib/genserver_baseline.ex` | 0.61 s | 5.48k |
 | `/usr/bin/time elixirc lib/genserver_baseline.ex` | 0.61 s | 5.48k |
 
-First its important to note that the GenServer version only populates the date on init, maning this is probably not a realistic comparison at this point. Though as we'll see later the GenServer seems to be able to create the data
+First its important to note that the GenServer version only populates the map data on init, meaning it is not a realistic comparison at this point. Though as we'll see later the GenServer seems to be able to create the data at run time much, much faster.
 
 At this point it seems that a module attribute is not only inlined, but inlined directly in the bytecode and duplicated for each occurrence.  Disassembling the resulting bytecode in the `.beam` files confirms this.  This explains why the output for the *bloat* version is so many times larger.
 
@@ -83,3 +83,11 @@ Super interesting (at least to me).
 The more data that is loaded via a module attributes has a significant negative impact on compile times and size of the resulting byte code for `beam`.  But at run-time this completely goes away as the virtual machine seems to share all references to the same data as intended.
 
 Also interesting is the apparent trade off with using static data verses a GenServer.  Compile times and amount of byte code for the GenServer is extremely small, even the run-time latency is within a reasonable tolerance.  But the run-time memory impact of the GenServer seems quite significant.
+
+### More interesting things to look at (at some point in the future)
+
+- These metrics are effectively setting up and then doing only one request for data. I'm curious about how GenServer compares if doing many more requests for data (its not hard to make each go through a loop, I've just not done that yet)
+
+- Erlang has `:persistent_term` which is specifically intended for high read throughput.  It would be interesting to add that to this set of metrics.
+
+- For completeness it might also be fun to add `ets`
