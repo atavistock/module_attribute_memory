@@ -8,27 +8,25 @@ Module Attributes let a developer reuse the same value or do compile time calcul
 
 ## Why did I even ask this question?
 
-I have a project which uses a large `Map` of static values (1m+ key-value pairs, about 25MB of memory) which is loaded from a file at application start, it is read from frequently, but never changes (no adds, deletes, or modifications).
+I have a project which uses a large `Map` of static values (1m+ key-value pairs, about 25MB of memory) which is loaded from a file at application start, it is accessed frequently, but **never** changes (no adds, deletes, or modifications).
 
-The existing implementation made using a GenServer - theres a single process containing the data as its state and requests load the state and check for a key. This works fine but I was thinking the data is static, so its not really state information.
+The first implementation I made using a GenServer - theres a single process containing the data as its state and requests load the state and check for a key. This works fine but I was thinking the data is static, so its not really state information so probably doesn't really need a GenServer.
 
 I pondered if the data just be loaded into a module attribute instead?
 
-If its inlined won't there be multiple functions accessing this same data, what will happen if I have `Map.get(@big_map, key)` and `Map.has_key?(@big_map, key)`, does the memory footprint double?  What happens if I have 4-5 such methods?
+If its inlined won't there be multiple functions accessing this same data, what will happen if I have `Map.get(@map, key)` and `Map.has_key?(@map, key)`, does the memory footprint double?  What happens if I have 4-5 such methods?
 
-Elixir and Erlang's BEAM go to some extra measures to help manage memory by tracking immutable objects as the same reference, would that effective remove any issue caused by multiple reference?are really good at reusing the same references.
+I know that Erlang's virtual machine `BEAM` does a lot to leverage immutability. Values that are the same will literally occupy the same memory space, making the VM incredibly resource efficient.
 
-Best way to find out is to test it...
+But really how effective is this? Best way to find out is to test it...
 
 ## Tests
 
-All tests are done on a 2023 Apple Macbook M2 Pro with 16GB of ram
+All tests are done on a 2023 Apple Macbook M2 Pro with 16GB of ram, using Elixir 1.16.3-otp-26
 
 ### Compiling
 
-Compiled three times deleting the generated `beam` file between each run
-
-Under elixir 1.16.3-otp-26
+Compiled three times deleting the generated `.beam` file between each run
 
 | cli | time | beam file size |
 | --- | --- | --- |
@@ -42,14 +40,11 @@ Under elixir 1.16.3-otp-26
 | `/usr/bin/time elixirc lib/genserver_baseline.ex` | 0.61 s | 5.48k |
 | `/usr/bin/time elixirc lib/genserver_baseline.ex` | 0.61 s | 5.48k |
 
-Some important things to note here:
- - The genserver only creates the map on init, that time is not reflected in compilation
+First its important to note that the GenServer version only populates the date on init, maning this is probably not a realistic comparison at this point. Though as we'll see later the GenServer seems to be able to create the data
 
-### Inspecting the BEAM file
+At this point it seems that a module attribute is not only inlined, but inlined directly in the bytecode and duplicated for each occurrence.  Disassembling the resulting bytecode in the `.beam` files confirms this.  This explains why the output for the *bloat* version is so many times larger.
 
-Disassembling the resulting `beam` file shows very clearly that at least at this phase the map is entire duplicated and inlined directly into each function.
-
-For example:
+Heres a snippet from the *bloat* version where you can see the map occuring multiple times
 
 ```
   //Function  Elixir.ModuleBloat:get/1
@@ -65,18 +60,11 @@ For example:
 
 ```
 
-Those maps literally have 1 million entries.
+*Each* of those maps literally have 1 million key-value pairs.
 
-### Runtime size
+### Run-time
 
-Under elixir 1.16.3-otp-26
-
-Compile the files
-```
-elixirc lib/genserver_baseline.ex
-elixirc lib/modattr_baseline.ex
-elixirc lib/modattr_bloat.ex
-```
+To ensure nothing else got pulled in, I deleted and compiled the `.beam` for each type of test, being careful not to leave the older files behind. I ran each type of test 3 times.
 
 | cli | time | peak memory |
 | --- | --- | -- |
@@ -89,8 +77,6 @@ elixirc lib/modattr_bloat.ex
 | `/usr/bin/time -l elixir bin/genserver_baseline.exs` | 1.00 s | 491M |
 | `/usr/bin/time -l elixir bin/genserver_baseline.exs` | 0.99 s | 490M |
 | `/usr/bin/time -l elixir bin/genserver_baseline.exs` | 1.00 s | 485M |
-
-## Closing thoughts
 
 Super interesting (at least to me).
 
