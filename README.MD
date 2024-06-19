@@ -20,32 +20,57 @@ Elixir and Erlang's BEAM go to some extra measures to help manage memory by trac
 
 Best way to find out is to test it...
 
-## Compilation
+## Tests
 
-### Stats
+All tests are done on a 2023 Apple Macbook M2 Pro with 16GB of ram
+
+### Compiling
+
+Compiled three times deleting the generated `beam` file between each run
 
 Under elixir 1.16.3-otp-26
 
 | cli | time | beam file size |
 | --- | --- | --- |
-| `elixirc lib/memory_baseline.ex` | 13.51 s | 6.59 Mb |
-| `elixirc lib/memory_bloat.ex` | 40.39 s | 22.92 Mb |
+| `/usr/bin/time elixirc memory_baseline.exs` | 13.51 s | 5.65 Mb |
+| `/usr/bin/time elixirc memory_baseline.exs` | 11.26 s | 5.65 Mb |
+| `/usr/bin/time elixirc memory_baseline.exs` | 13.11 s | 5.65 Mb |
+| `/usr/bin/time elixirc memory_bloat.exs` | 40.39 s | 17.19 Mb |
+| `/usr/bin/time elixirc memory_bloat.exs` | 46.20 s | 17.19 Mb |
+| `/usr/bin/time elixirc memory_bloat.exs` | 42.51 s | 17.19 Mb |
 
 ### Inspecting the BEAM file
 
-Disassembling the resulting `beam` file shows very clearly that at least at this phase the map is entire inlined directly into each function.
+Disassembling the resulting `beam` file shows very clearly that at least at this phase the map is entire duplicated and inlined directly into each function.
 
 For example:
+
 ```
   //Function  Elixir.ModuleBloat:get/1
   label10:  func_info            Elixir.ModuleBloat get 1 //line lib/memory_bloat.ex, 5
   label11:  move                 X[0] X[1]
-            move                %{ ..., 100004 => 1, 100005 => 1, 100006 => 1, ... }
+            move                %{ ..., 100004 => a1, 100005 => a1, ... }
             call_ext_only        2 Elixir.Map:get/2
 
   //Function  Elixir.ModuleBloat:has_key?/1
   label12:  func_info            Elixir.ModuleBloat has_key? 1 //line lib/memory_bloat.ex, 6
-  label13:  bif2                 label00 2 X[0] %{ ..., 100004 => 1, 100005 => 1, 100006 => 1, ... }
+  label13:  bif2                 label00 2 X[0] %{ ..., 100004 => a1, 100005 => a1, ... }
             return
 
 ```
+
+### Runtime size
+
+Under elixir 1.16.3-otp-26
+
+| cli | time | peak memory |
+| --- | --- | -- |
+| `/usr/bin/time -l elixir bin/memory_baseline.exs` | 0.60 s | 275M |
+| `/usr/bin/time -l elixir bin/memory_baseline.exs` | 0.60 s | 274M |
+| `/usr/bin/time -l elixir bin/memory_baseline.exs` | 0.63 s | 274M |
+| `/usr/bin/time -l elixir bin/memory_bloat.exs` | 0.60 s | 271M |
+| `/usr/bin/time -l elixir bin/memory_bloat.exs` | 0.63 s | 287M |
+| `/usr/bin/time -l elixir bin/memory_bloat.exs` | 0.64 s | 287M |
+
+## Conclusion
+
