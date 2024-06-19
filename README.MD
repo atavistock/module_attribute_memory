@@ -47,16 +47,16 @@ At this point it seems that a module attribute is not only inlined, but inlined 
 Heres a snippet from the *bloat* version where you can see the map occurring multiple times
 
 ```
-  //Function  Elixir.ModattrBloat:get/1
-  label10:  func_info            Elixir.ModattrBloat get 1 //line lib/modattr_bloat.ex, 5
-  label11:  move                 X[0] X[1]
-            move                %{ ..., 100004 => a1, 100005 => a1, ... }
-            call_ext_only        2 Elixir.Map:get/2
+//Function  Elixir.ModattrBloat:get/1
+label10:  func_info            Elixir.ModattrBloat get 1 //line lib/modattr_bloat.ex, 5
+label11:  move                 X[0] X[1]
+          move                %{ ..., 100004 => a1, 100005 => a1, ... }
+          call_ext_only        2 Elixir.Map:get/2
 
-  //Function  Elixir.ModattrBloat:has_key?/1
-  label12:  func_info            Elixir.ModattrBloat has_key? 1 //line lib/modattr_bloat.ex, 6
-  label13:  bif2                 label00 2 X[0] %{ ..., 100004 => a1, 100005 => a1, ... }
-            return
+//Function  Elixir.ModattrBloat:has_key?/1
+label12:  func_info            Elixir.ModattrBloat has_key? 1 //line lib/modattr_bloat.ex, 6
+label13:  bif2                 label00 2 X[0] %{ ..., 100004 => a1, 100005 => a1, ... }
+          return
 
 ```
 
