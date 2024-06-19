@@ -22,9 +22,30 @@ Best way to find out is to test it...
 
 ## Compilation
 
-| elixir | cli | time | beam file size |
-| --- | --- | --- | --- |
-| 1.16.3-otp-26 | `elixirc lib/memory_baseline.ex` | 10.69 s | 7.3 Mb |
-| 1.13.4-otp-25 | `elixirc lib/memory_baseline.ex` | 8.37 s | 11.7 Mb |
-| 1.16.3-otp-26 | `elixirc lib/memory_bloat.ex` | 46.31 s | 18.5 Mb |
-| 1.13.4-otp-25 | `elixirc lib/memory_bloat.ex` | 30.12 s | 36.2 Mb |
+### Stats
+
+Under elixir 1.16.3-otp-26
+
+| cli | time | beam file size |
+| --- | --- | --- |
+| `elixirc lib/memory_baseline.ex` | 13.51 s | 6.59 Mb |
+| `elixirc lib/memory_bloat.ex` | 40.39 s | 22.92 Mb |
+
+### Inspecting the BEAM file
+
+Disassembling the resulting `beam` file shows very clearly that at least at this phase the map is entire inlined directly into each function.
+
+For example:
+```
+  //Function  Elixir.ModuleBloat:get/1
+  label10:  func_info            Elixir.ModuleBloat get 1 //line lib/memory_bloat.ex, 5
+  label11:  move                 X[0] X[1]
+            move                %{ ..., 100004 => 1, 100005 => 1, 100006 => 1, ... }
+            call_ext_only        2 Elixir.Map:get/2
+
+  //Function  Elixir.ModuleBloat:has_key?/1
+  label12:  func_info            Elixir.ModuleBloat has_key? 1 //line lib/memory_bloat.ex, 6
+  label13:  bif2                 label00 2 X[0] %{ ..., 100004 => 1, 100005 => 1, 100006 => 1, ... }
+            return
+
+```
